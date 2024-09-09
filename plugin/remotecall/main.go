@@ -58,51 +58,58 @@ func main() {
 			},
 		},
 		CreateConfig: func(c *cli.Context) (*libplugin.SshPiperPluginConfig, error) {
-			caller, err := createRemoteCaller(c)
-			if err != nil {
-				return nil, err
-			}
-
-			return &libplugin.SshPiperPluginConfig{
-
-				NextAuthMethodsCallback: func(_ libplugin.ConnMetadata) ([]string, error) {
-					return []string{"publickey"}, nil
-				},
-
-				PublicKeyCallback: func(conn libplugin.ConnMetadata, key []byte) (*libplugin.Upstream, error) {
-					clusterName, err := caller.GetClusterName(conn.User())
-					if err != nil {
-						return nil, err
-					}
-
-					clusterURL, err := caller.GetUpstreamURL(clusterName)
-					if err != nil {
-						return nil, err
-					}
-
-					authResponse, err := caller.AuthenticateUser(key, clusterURL)
-					if err != nil {
-						return nil, err
-					}
-
-					k, err := caller.MapKey()
-					if err != nil {
-						return nil, err
-					}
-
-					host, port, err := libplugin.SplitHostPortForSSH(clusterURL)
-					if err != nil {
-						return nil, err
-					}
-
-					return &libplugin.Upstream{
-						Host:     host,
-						Port:     int32(port),
-						UserName: getUserName(authResponse),
-						Auth:     libplugin.CreatePrivateKeyAuth(k),
-					}, nil
-				},
-			}, nil
+			return createConfig(c)
 		},
 	})
+}
+
+func createConfig(c *cli.Context) (*libplugin.SshPiperPluginConfig, error) {
+	caller, err := createRemoteCaller(c)
+	if err != nil {
+		return nil, fmt.Errorf("error creating remote caller: %w", err)
+	}
+
+	return &libplugin.SshPiperPluginConfig{
+
+		NextAuthMethodsCallback: func(_ libplugin.ConnMetadata) ([]string, error) {
+			return []string{"publickey"}, nil
+		},
+
+		PublicKeyCallback: func(conn libplugin.ConnMetadata, key []byte) (*libplugin.Upstream, error) {
+			clusterName, err := caller.GetClusterName(conn.User())
+			if err != nil {
+				return nil, fmt.Errorf("error getting cluster name from user: %w", err)
+			}
+
+			clusterAuthnURL, err := caller.GetUpstreamAuthenticatorURL(clusterName)
+			if err != nil {
+				return nil, fmt.Errorf("error getting authenticator url from cluster name: %w", err)
+			}
+
+			authResponse, err := caller.AuthenticateKey(key, clusterURL)
+			if err != nil {
+				return nil, fmt.Errorf("error authenticating to clusterUrl %q: %w", clusterAuthnURL, err)
+			}
+
+			k := caller.MapKey()
+
+			inClusterSvcUrl, err := caller.GetUpstreamSvcURL(clusterName)
+			if err != nil {
+				return nil, fmt.Errorf("error getting upstream url for cluster %q: %w", clusterName, err)
+			}
+
+			host, port, err := libplugin.SplitHostPortForSSH(inClusterSvcUrl)
+			if err != nil {
+				return nil, fmt.Errorf("error getting host port for in cluster svc url %q: %w",
+					inClusterSvcUrl, err)
+			}
+
+			return &libplugin.Upstream{
+				Host:     host,
+				Port:     int32(port),
+				UserName: getUserName(authResponse),
+				Auth:     libplugin.CreatePrivateKeyAuth(k),
+			}, nil
+		},
+	}, nil
 }

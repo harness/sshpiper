@@ -1,14 +1,12 @@
 package remotecall
 
-type userKeyAuth struct {
-	Key []byte `json:"key"`
+type userKeyAuthRequest struct {
+	Key       []byte `json:"key"`
+	AccountId string `json:"accountIdentifier"`
 }
 
 type PrincipalType string
 
-const PrincipalTypeUser PrincipalType = "user"
-
 type UserKeyAuthResponse struct {
-	PrincipalType PrincipalType `json:"principalType"`
-	PrincipalID   string        `json:"principalID"`
+	UUID string `json:"uuid"`
 }
