@@ -132,9 +132,6 @@ func (w *Workingdir) fullpath(file string) string {
 }
 
 func (w *Workingdir) Readfile(file string) ([]byte, error) {
-	if err := w.checkPerm(file); err != nil {
-		return nil, err
-	}
 
 	return os.ReadFile(w.fullpath(file))
 }

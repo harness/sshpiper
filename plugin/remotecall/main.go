@@ -1,10 +1,7 @@
-//go:build full || e2e
-
 package main
 
 import (
 	"fmt"
-	"strings"
 
 	"github.com/tg123/sshpiper/libplugin"
 	"github.com/tg123/sshpiper/plugin/internal/remotecall"
@@ -14,6 +11,7 @@ import (
 func createRemoteCaller(c *cli.Context) (*remotecall.RemoteCall, error) {
 	remoteCall, err := remotecall.InitRemoteCall(
 		c.String(userClusterEndpoint),
+		c.Generic(remoteAuthEndpoints).(*remotecall.StringMapFlag).Value,
 		c.Generic(remoteEndpoints).(*remotecall.StringMapFlag).Value,
 		c.Path(mappingKeyPath),
 	)
@@ -25,10 +23,11 @@ func createRemoteCaller(c *cli.Context) (*remotecall.RemoteCall, error) {
 }
 
 func getUserName(response *remotecall.UserKeyAuthResponse) string {
-	return strings.ToLower(string(response.PrincipalType)) + "." + response.PrincipalID
+	return "user" + "." + response.UUID
 }
 
 const (
+	remoteAuthEndpoints = "remote-auth-endpoint"
 	remoteEndpoints     = "remote-endpoint"
 	userClusterEndpoint = "user-cluster-endpoint"
 	mappingKeyPath      = "mapping-key-path"
@@ -40,9 +39,16 @@ func main() {
 		Usage: "sshpiperd remote plugin",
 		Flags: []cli.Flag{
 			&cli.GenericFlag{
-				Name:     remoteEndpoints,
+				Name:     remoteAuthEndpoints,
 				Usage:    "path to remote endpoint for retrieving user's private key",
 				EnvVars:  []string{"SSHPIPERD_PRIVATE_KEY_ENDPOINTS"},
+				Value:    &remotecall.StringMapFlag{},
+				Required: true,
+			},
+			&cli.GenericFlag{
+				Name:     remoteEndpoints,
+				Usage:    "path to remote endpoint for forwarding traffic",
+				EnvVars:  []string{"SSHPIPERD_IN_CLUSTER_ENDPOINTS"},
 				Value:    &remotecall.StringMapFlag{},
 				Required: true,
 			},
@@ -86,7 +92,7 @@ func createConfig(c *cli.Context) (*libplugin.SshPiperPluginConfig, error) {
 				return nil, fmt.Errorf("error getting authenticator url from cluster name: %w", err)
 			}
 
-			authResponse, err := caller.AuthenticateKey(key, clusterURL)
+			authResponse, err := caller.AuthenticateKey(key, clusterAuthnURL)
 			if err != nil {
 				return nil, fmt.Errorf("error authenticating to clusterUrl %q: %w", clusterAuthnURL, err)
 			}
