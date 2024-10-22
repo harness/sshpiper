@@ -376,7 +376,7 @@ func (g *GrpcPlugin) createUpstream(conn ssh.ConnMetadata, challengeCtx ssh.Chal
 		config.Auth = append(config.Auth, ssh.NoneAuth())
 	}
 
-	log.Debugf("connecting to upstream %v with auth %v", c.RemoteAddr().String(), auth)
+	log.Debugf("connecting to upstream %v@%v with auth %v", config.User, c.RemoteAddr().String(), auth)
 
 	return &ssh.Upstream{
 		Conn:         c,
@@ -576,7 +576,8 @@ func DialCmd(cmd *exec.Cmd) (*CmdPlugin, error) {
 		ch <- cmd.Wait()
 	}()
 
-	conn, err := grpc.Dial("", grpc.WithTransportCredentials(insecure.NewCredentials()), grpc.WithContextDialer(func(_ context.Context, _ string) (net.Conn, error) {
+	// this dummy 127.0.0.1 is not used
+	conn, err := grpc.NewClient("127.0.0.1", grpc.WithTransportCredentials(insecure.NewCredentials()), grpc.WithContextDialer(func(_ context.Context, _ string) (net.Conn, error) {
 		return cmdconn, nil
 	}))
 
@@ -591,4 +592,14 @@ func DialCmd(cmd *exec.Cmd) (*CmdPlugin, error) {
 	}
 
 	return &CmdPlugin{*g, ch}, nil
+}
+
+func GetUniqueID(ctx ssh.ChallengeContext) string {
+	switch meta := ctx.(type) {
+	case *connMeta:
+		return meta.UniqId
+	case *chainConnMeta:
+		return meta.UniqId
+	}
+	panic("unknown challenge context")
 }

@@ -3,13 +3,13 @@
 package main
 
 import (
-	"bytes"
 	"context"
+	"crypto/subtle"
 	"encoding/base64"
 	"fmt"
 	"net"
 
-	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/network"
 	"github.com/docker/docker/client"
 	log "github.com/sirupsen/logrus"
@@ -43,7 +43,7 @@ func (p *plugin) listPipes() ([]pipe, error) {
 	// filter := filters.NewArgs()
 	// filter.Add("label", fmt.Sprintf("sshpiper.username=%v", username))
 
-	containers, err := p.dockerCli.ContainerList(context.Background(), types.ContainerListOptions{
+	containers, err := p.dockerCli.ContainerList(context.Background(), container.ListOptions{
 		// Filters: filter,
 	})
 	if err != nil {
@@ -91,7 +91,7 @@ func (p *plugin) listPipes() ([]pipe, error) {
 				return nil, fmt.Errorf("multiple networks found for container %v, please specify sshpiper.network", c.ID)
 			}
 
-			net, err := p.dockerCli.NetworkInspect(context.Background(), netname, types.NetworkInspectOptions{})
+			net, err := p.dockerCli.NetworkInspect(context.Background(), netname, network.InspectOptions{})
 			if err != nil {
 				log.Warnf("cannot list network %v for container %v: %v", netname, c.ID, err)
 				continue
@@ -211,7 +211,7 @@ func (p *plugin) findAndCreateUpstream(conn libplugin.ConnMetadata, password str
 				return nil, err
 			}
 
-			if bytes.Equal(authedPubkey.Marshal(), publicKey) {
+			if subtle.ConstantTimeCompare(authedPubkey.Marshal(), publicKey) == 1 {
 				return p.createUpstream(conn, pipe, "")
 			}
 		}
