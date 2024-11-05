@@ -19,7 +19,7 @@ const (
 )
 
 type RemoteCall struct {
-	userClusterNameURL                    string
+	userClusterNameURL                    *url.URL
 	clusterNameInClusterAuthenticatorURL  map[string]*url.URL
 	clusterNameInClusterServiceClusterURL map[string]*url.URL
 
@@ -34,6 +34,11 @@ func InitRemoteCall(
 	clusterNameInClusterServiceClusterURL map[string]string,
 	mappingKeyPath string,
 ) (*RemoteCall, error) {
+	userClusterNameURLParsed, err := url.Parse(userClusterNameURL)
+	if err != nil {
+		return nil, fmt.Errorf("error parsing userClusterNameURL %q: %w", userClusterNameURL, err)
+	}
+
 	clusterNameInClusterAuthenticatorURLParsed := make(map[string]*url.URL, len(clusterNameInClusterAuthenticatorURL))
 
 	for clusterName, clusterURL := range clusterNameInClusterAuthenticatorURL {
@@ -60,7 +65,7 @@ func InitRemoteCall(
 	}
 
 	return &RemoteCall{
-		userClusterNameURL:                    userClusterNameURL,
+		userClusterNameURL:                    userClusterNameURLParsed,
 		clusterNameInClusterAuthenticatorURL:  clusterNameInClusterAuthenticatorURLParsed,
 		httpClient:                            createHttpClient(),
 		mappingKeyFile:                        key,
@@ -79,9 +84,9 @@ func createHttpClient() *http.Client {
 }
 
 func (r *RemoteCall) GetClusterName(username string) (string, error) {
-	req, err := http.NewRequest("GET", fmt.Sprintf(r.userClusterNameURL, username), nil)
+	req, err := http.NewRequest("GET", r.userClusterNameURL.JoinPath(username).RawPath, nil)
 	if err != nil {
-		return "", fmt.Errorf("error creating request: %w", err)
+		return "", fmt.Errorf("error creating request for getting cluster name: %w", err)
 	}
 
 	// Set custom headers if needed
@@ -120,7 +125,7 @@ func (r *RemoteCall) AuthenticateKey(key []byte, clusterURL string) (*UserKeyAut
 
 	req, err := http.NewRequest("GET", clusterURL, bytes.NewBuffer(body))
 	if err != nil {
-		return nil, fmt.Errorf("error creating request: %w", err)
+		return nil, fmt.Errorf("error creating request for auth: %w", err)
 	}
 
 	req.Header.Set(UserAgentKey, UserAgentSSHGateway)
