@@ -290,7 +290,7 @@ func (g *GrpcPlugin) createUpstream(conn ssh.ConnMetadata, challengeCtx ssh.Chal
 
 	c, err := net.Dial("tcp", addr)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("error doing tcp dial to addr %q: %w", addr, err)
 	}
 
 	config := ssh.ClientConfig{
@@ -418,6 +418,7 @@ func (g *GrpcPlugin) PublicKeyCallback(conn ssh.ConnMetadata, key ssh.PublicKey,
 	reply, err := g.client.PublicKeyAuth(context.Background(), &libplugin.PublicKeyAuthRequest{
 		Meta:      meta,
 		PublicKey: key.Marshal(),
+		KeyType:   key.Type(),
 	})
 
 	if err != nil {
@@ -535,6 +536,8 @@ func (g *GrpcPlugin) RecvLogs(writer io.Writer) error {
 	if err != nil {
 		return err
 	}
+	fmt.Printf("recv logs")
+	log.Info("recv logs")
 
 	stream, err := g.client.Logs(context.Background(), &libplugin.StartLogRequest{
 		UniqId: uid.String(),
@@ -551,7 +554,7 @@ func (g *GrpcPlugin) RecvLogs(writer io.Writer) error {
 			log.Errorf("recv log error: %v", err)
 			return err
 		}
-
+		log.Info("got logs")
 		fmt.Fprintln(writer, line.GetMessage())
 	}
 }
