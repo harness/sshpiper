@@ -536,8 +536,6 @@ func (g *GrpcPlugin) RecvLogs(writer io.Writer) error {
 	if err != nil {
 		return err
 	}
-	fmt.Printf("recv logs")
-	log.Info("recv logs")
 
 	stream, err := g.client.Logs(context.Background(), &libplugin.StartLogRequest{
 		UniqId: uid.String(),
@@ -554,7 +552,6 @@ func (g *GrpcPlugin) RecvLogs(writer io.Writer) error {
 			log.Errorf("recv log error: %v", err)
 			return err
 		}
-		log.Info("got logs")
 		fmt.Fprintln(writer, line.GetMessage())
 	}
 }

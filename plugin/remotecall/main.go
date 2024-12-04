@@ -25,7 +25,7 @@ func createRemoteCaller(c *cli.Context) (*remotecall.RemoteCall, error) {
 	return remoteCall, nil
 }
 
-func getUserName(response *remotecall.UserKeyAuthResponse) string {
+func generateUpstreamUserName(response *remotecall.UserKeyAuthResponse) string {
 	return "user" + "." + response.Data.UUID
 }
 
@@ -130,7 +130,7 @@ func createConfig(c *cli.Context) (*libplugin.SshPiperPluginConfig, error) {
 			return &libplugin.Upstream{
 				Host:          host,
 				Port:          int32(port),
-				UserName:      getUserName(authResponse),
+				UserName:      generateUpstreamUserName(authResponse),
 				Auth:          libplugin.CreatePrivateKeyAuth(k),
 				IgnoreHostKey: true,
 			}, nil
