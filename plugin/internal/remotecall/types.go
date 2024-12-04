@@ -3,9 +3,13 @@ package remotecall
 import "github.com/golang-jwt/jwt"
 
 type userKeyAuthRequest struct {
-	Key       []byte `json:"sshKey"`
-	KeyType   string `json:"keyType"`
-	AccountId string `json:"accountIdentifier"`
+	AccountId    string       `json:"accountIdentifier"`
+	sshKeyObject sshKeyObject `json:"sshKeyObject"`
+}
+
+type sshKeyObject struct {
+	Key     []byte `json:"sshKey"`
+	KeyType string `json:"keyType"`
 }
 
 type PrincipalType string

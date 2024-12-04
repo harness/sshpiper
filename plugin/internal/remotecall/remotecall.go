@@ -149,7 +149,10 @@ func (r *RemoteCall) AuthenticateKey(
 	token string,
 	accountId string,
 ) (*UserKeyAuthResponse, error) {
-	auth := userKeyAuthRequest{Key: key, KeyType: keyType, AccountId: accountId}
+	auth := userKeyAuthRequest{sshKeyObject: sshKeyObject{
+		Key:     key,
+		KeyType: keyType,
+	}, AccountId: accountId}
 	body, err := json.Marshal(auth)
 	if err != nil {
 		return nil, fmt.Errorf("error marshalling auth: %v", auth)
