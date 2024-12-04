@@ -9,6 +9,7 @@ replace golang.org/x/crypto => ./crypto
 require (
 	github.com/creack/pty v1.1.24
 	github.com/docker/docker v27.3.1+incompatible
+	github.com/golang-jwt/jwt v3.2.2+incompatible
 	github.com/google/uuid v1.6.0
 	github.com/patrickmn/go-cache v2.1.0+incompatible
 	github.com/pires/go-proxyproto v0.6.2
@@ -35,7 +36,6 @@ require (
 	github.com/felixge/httpsnoop v1.0.4 // indirect
 	github.com/fxamacker/cbor/v2 v2.7.0 // indirect
 	github.com/go-logr/stdr v1.2.2 // indirect
-	github.com/golang-jwt/jwt v3.2.2+incompatible // indirect
 	github.com/google/gnostic-models v0.6.8 // indirect
 	github.com/moby/docker-image-spec v1.3.1 // indirect
 	github.com/x448/float16 v0.8.4 // indirect
