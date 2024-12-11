@@ -24,8 +24,11 @@ type ServiceJWTProvider struct {
 	lock         sync.Mutex
 }
 
-func NewServiceJWTProvider(serviceIdentity string, secret []byte,
-	jwtValidFor time.Duration) (*ServiceJWTProvider, error) {
+func NewServiceJWTProvider(
+	serviceIdentity string,
+	secret []byte,
+	jwtValidFor time.Duration,
+) (*ServiceJWTProvider, error) {
 	if serviceIdentity == "" {
 		return nil, fmt.Errorf("serviceIdentity used to identify JWT tokens can't be empty")
 	}

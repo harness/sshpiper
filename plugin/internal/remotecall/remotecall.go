@@ -107,27 +107,10 @@ func (r *RemoteCall) GetClusterName(username string) (string, error) {
 			" %q :%w", r.userClusterNameURL, username, err)
 	}
 
-	// Set custom headers if needed
-	req.Header.Set(UserAgent, UserAgentSSHGateway)
-	req.Header.Set(Accept, ApplicationJson)
-	req.Header.Set(ContentType, ApplicationJson)
 	req.Header.Set(AuthTokenUserClusterMapping, r.userClusterToken)
-
-	resp, err := r.httpClient.Do(req)
+	resp, err := r.performHttpRequest(req)
 	if err != nil {
-		return "", fmt.Errorf("error making request: %w", err)
-	}
-	if resp != nil && resp.Body != nil {
-		defer func() { _ = resp.Body.Close() }()
-	}
-
-	if resp.StatusCode != http.StatusOK {
-		bodyBytes, err := io.ReadAll(resp.Body)
-		if err != nil {
-			return "", fmt.Errorf("error reading response body during GetClusterName: %w", err)
-		}
-		return "", fmt.Errorf("error: status code for url: %s, error: %q: %d", req.URL.String(), bodyBytes,
-			resp.StatusCode)
+		return "", fmt.Errorf("error doing http call for GetClusterName: %w", err)
 	}
 
 	userClusterResponse := UserClusterResponse{}
@@ -137,6 +120,31 @@ func (r *RemoteCall) GetClusterName(username string) (string, error) {
 	}
 
 	return userClusterResponse.ClusterName, nil
+}
+
+func (r *RemoteCall) performHttpRequest(req *http.Request) (*http.Response, error) {
+	// Set custom headers if needed
+	req.Header.Set(UserAgent, UserAgentSSHGateway)
+	req.Header.Set(Accept, ApplicationJson)
+	req.Header.Set(ContentType, ApplicationJson)
+
+	resp, err := r.httpClient.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("error making request: %w", err)
+	}
+	if resp != nil && resp.Body != nil {
+		defer resp.Body.Close()
+	}
+
+	if resp.StatusCode != http.StatusOK {
+		bodyBytes, err := io.ReadAll(resp.Body)
+		if err != nil {
+			return nil, fmt.Errorf("error reading response body : %w", err)
+		}
+		return nil, fmt.Errorf("error: status code for url: %s, error: %q: %d", req.URL.String(), bodyBytes,
+			resp.StatusCode)
+	}
+	return resp, nil
 }
 
 // todo: refactor once we have user info in directory svc
@@ -166,31 +174,15 @@ func (r *RemoteCall) AuthenticateKey(
 		return nil, fmt.Errorf("error marshalling auth: %v", auth)
 	}
 
-	req, err := http.NewRequest("POST", clusterURL, bytes.NewBuffer(body))
+	req, err := http.NewRequest("POST", clusterURL, bytes.NewReader(body))
 	if err != nil {
 		return nil, fmt.Errorf("error creating request for auth: %w", err)
 	}
 
-	req.Header.Set(UserAgent, UserAgentSSHGateway)
-	req.Header.Set(Accept, ApplicationJson)
-	req.Header.Set(ContentType, ApplicationJson)
 	req.Header.Set(Authorization, token)
-
-	resp, err := r.httpClient.Do(req)
+	resp, err := r.performHttpRequest(req)
 	if err != nil {
-		return nil, fmt.Errorf("error making request for url: %s: %w", req.URL.String(), err)
-	}
-	if resp != nil && resp.Body != nil {
-		defer func() { _ = resp.Body.Close() }()
-	}
-
-	if resp.StatusCode != http.StatusOK {
-		bodyBytes, err := io.ReadAll(resp.Body)
-		if err != nil {
-			fmt.Println("Error reading response body:", err)
-			return nil, fmt.Errorf("error reading response body during authentication: %w", err)
-		}
-		return nil, fmt.Errorf("error: status code: %d: body: %q", resp.StatusCode, bodyBytes)
+		return nil, fmt.Errorf("error performing http request for AuthenticateKey: %w", err)
 	}
 
 	authResponse := &UserKeyAuthResponse{}

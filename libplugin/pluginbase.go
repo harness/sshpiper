@@ -297,14 +297,11 @@ func (s *server) PublicKeyAuth(ctx context.Context, req *PublicKeyAuthRequest) (
 	// try new callback if available first
 	if s.config.PublicKeyCallbackNew != nil {
 		upstream, err = s.config.PublicKeyCallbackNew(req.Meta, req.PublicKey, req.KeyType)
-		if err != nil {
-			return nil, err
-		}
 	} else {
 		upstream, err = s.config.PublicKeyCallback(req.Meta, req.PublicKey)
-		if err != nil {
-			return nil, err
-		}
+	}
+	if err != nil {
+		return nil, err
 	}
 	return &PublicKeyAuthResponse{
 		Upstream: upstream,
