@@ -80,7 +80,7 @@ func (p *ServiceJWTProvider) Provide() (string, error) {
 func NewServiceJWT(identity string, signingKey []byte, expiresAt time.Time) (string, error) {
 	now := time.Now()
 	claims := JWTClaims{
-		Type: "SERVICE",
+		Type: PrincipalTypeService,
 		Name: identity,
 		StandardClaims: jwt.StandardClaims{
 			Issuer:    "Harness Inc",

@@ -12,14 +12,14 @@ import (
 )
 
 const (
-	UserAgentKey        = "User-Agent"
-	UserAgentSSHGateway = "SSH-gateway"
-	AcceptKey           = "Accept"
+	UserAgent           = "User-Agent"
+	UserAgentSSHGateway = "SSH-Gateway"
+	Accept              = "Accept"
 	ContentType         = "Content-Type"
 	ApplicationJson     = "application/json"
 
 	AuthTokenUserClusterMapping = "authToken"
-	AuthKeyAuthenticator        = "Authorization"
+	Authorization               = "Authorization"
 	IdentitySSHGateway          = "SSH-gateway"
 	JwtValidity                 = 5 * time.Second
 )
@@ -32,7 +32,7 @@ type RemoteCall struct {
 	serviceJwtProvider                   map[string]*ServiceJWTProvider
 
 	// keeping it string since these won't have http
-	clusterNameInClusterServiceClusterURL map[string]string
+	clusterNameUpstreamURL map[string]string
 
 	mappingKeyFile []byte
 
@@ -44,7 +44,7 @@ func InitRemoteCall(
 	userClusterToken string,
 	clusterNameInClusterAuthenticatorURL map[string]string,
 	serviceJwtToken map[string]string,
-	clusterNameInClusterServiceClusterURL map[string]string,
+	clusterNameUpstreamURL map[string]string,
 	mappingKeyPath string,
 ) (*RemoteCall, error) {
 	userClusterNameURLParsed, err := url.Parse(userClusterNameURL)
@@ -77,13 +77,13 @@ func InitRemoteCall(
 	}
 
 	return &RemoteCall{
-		userClusterNameURL:                    userClusterNameURLParsed,
-		userClusterToken:                      userClusterToken,
-		clusterNameInClusterAuthenticatorURL:  clusterNameInClusterAuthenticatorURLParsed,
-		serviceJwtProvider:                    jwtProviders,
-		httpClient:                            createHttpClient(),
-		mappingKeyFile:                        key,
-		clusterNameInClusterServiceClusterURL: clusterNameInClusterServiceClusterURL,
+		userClusterNameURL:                   userClusterNameURLParsed,
+		userClusterToken:                     userClusterToken,
+		clusterNameInClusterAuthenticatorURL: clusterNameInClusterAuthenticatorURLParsed,
+		serviceJwtProvider:                   jwtProviders,
+		httpClient:                           createHttpClient(),
+		mappingKeyFile:                       key,
+		clusterNameUpstreamURL:               clusterNameUpstreamURL,
 	}, nil
 }
 
@@ -108,8 +108,8 @@ func (r *RemoteCall) GetClusterName(username string) (string, error) {
 	}
 
 	// Set custom headers if needed
-	req.Header.Set(UserAgentKey, UserAgentSSHGateway)
-	req.Header.Set(AcceptKey, ApplicationJson)
+	req.Header.Set(UserAgent, UserAgentSSHGateway)
+	req.Header.Set(Accept, ApplicationJson)
 	req.Header.Set(ContentType, ApplicationJson)
 	req.Header.Set(AuthTokenUserClusterMapping, r.userClusterToken)
 
@@ -124,7 +124,6 @@ func (r *RemoteCall) GetClusterName(username string) (string, error) {
 	if resp.StatusCode != http.StatusOK {
 		bodyBytes, err := io.ReadAll(resp.Body)
 		if err != nil {
-			fmt.Println("Error reading response body:", err)
 			return "", fmt.Errorf("error reading response body during GetClusterName: %w", err)
 		}
 		return "", fmt.Errorf("error: status code for url: %s, error: %q: %d", req.URL.String(), bodyBytes,
@@ -146,13 +145,22 @@ func (r *RemoteCall) AuthenticateKey(
 	key []byte,
 	keyType string,
 	clusterURL string,
-	token string,
+	clusterName string,
 	accountId string,
 ) (*UserKeyAuthResponse, error) {
-	auth := userKeyAuthRequest{sshKeyObject: sshKeyObject{
-		Key:     key,
-		KeyType: keyType,
-	}, AccountId: accountId}
+	token, err := r.getUpstreamAuthenticatorAuthToken(clusterName)
+	if err != nil {
+		return nil, fmt.Errorf("error getting authenticator token from cluster name: %w", err)
+	}
+
+	sshKeyObj := sshKeyObject{
+		Key:       key,
+		Algorithm: keyType,
+	}
+	auth := userKeyAuthRequest{
+		SshKeyObject: sshKeyObj,
+		AccountId:    accountId,
+	}
 	body, err := json.Marshal(auth)
 	if err != nil {
 		return nil, fmt.Errorf("error marshalling auth: %v", auth)
@@ -163,10 +171,10 @@ func (r *RemoteCall) AuthenticateKey(
 		return nil, fmt.Errorf("error creating request for auth: %w", err)
 	}
 
-	req.Header.Set(UserAgentKey, UserAgentSSHGateway)
-	req.Header.Set(AcceptKey, ApplicationJson)
+	req.Header.Set(UserAgent, UserAgentSSHGateway)
+	req.Header.Set(Accept, ApplicationJson)
 	req.Header.Set(ContentType, ApplicationJson)
-	req.Header.Set(AuthKeyAuthenticator, token)
+	req.Header.Set(Authorization, token)
 
 	resp, err := r.httpClient.Do(req)
 	if err != nil {
@@ -206,7 +214,7 @@ func (r *RemoteCall) GetUpstreamAuthenticatorURL(clusterName string) (string, er
 	return clusterURL.String(), nil
 }
 
-func (r *RemoteCall) GetUpstreamAuthenticatorAuthToken(clusterName string) (string, error) {
+func (r *RemoteCall) getUpstreamAuthenticatorAuthToken(clusterName string) (string, error) {
 	jwtProvider, ok := r.serviceJwtProvider[clusterName]
 	if !ok {
 		return "", fmt.Errorf("unknown cluster for jwt token %q", clusterName)
@@ -219,7 +227,7 @@ func (r *RemoteCall) GetUpstreamAuthenticatorAuthToken(clusterName string) (stri
 }
 
 func (r *RemoteCall) GetUpstreamSvcURL(clusterName string) (string, error) {
-	clusterURL, ok := r.clusterNameInClusterServiceClusterURL[clusterName]
+	clusterURL, ok := r.clusterNameUpstreamURL[clusterName]
 	if !ok {
 		return "", fmt.Errorf("unknown upstream cluster %q", clusterName)
 	}

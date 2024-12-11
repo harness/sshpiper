@@ -8,11 +8,13 @@ type userKeyAuthRequest struct {
 }
 
 type sshKeyObject struct {
-	Key     []byte `json:"sshKey"`
-	KeyType string `json:"keyType"`
+	Key       []byte `json:"key"`
+	Algorithm string `json:"algorithm"`
 }
 
 type PrincipalType string
+
+const PrincipalTypeService PrincipalType = "SERVICE"
 
 type UserKeyAuthResponse struct {
 	Data   Data   `json:"data"`
@@ -31,8 +33,8 @@ type JWTClaims struct {
 	jwt.StandardClaims
 
 	// Common claims
-	Type string `json:"type,omitempty"`
-	Name string `json:"name,omitempty"`
+	Type PrincipalType `json:"type,omitempty"`
+	Name string        `json:"name,omitempty"`
 
 	// Used only by user / service account
 	Email     string `json:"email,omitempty"`
