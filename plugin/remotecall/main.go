@@ -33,7 +33,7 @@ const (
 	remoteAuthEndpoints       = "remote-auth-endpoint"
 	remoteAuthEndpointsSecret = "remote-auth-endpoint-secret"
 
-	remoteEndpoints = "remote-endpoint"
+	remoteEndpoint = "remote-endpoint"
 
 	userClusterMappingEndpoint      = "user-cluster-endpoint"
 	userClusterMappingEndpointToken = "user-cluster-endpoint-token"
