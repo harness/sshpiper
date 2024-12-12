@@ -28,11 +28,11 @@ type RemoteCall struct {
 	userClusterNameURL *url.URL
 	userClusterToken   string
 
-	clusterNameInClusterAuthenticatorURL map[string]*url.URL
-	serviceJwtProvider                   map[string]*ServiceJWTProvider
+	clusterNameToAuthenticatorURL map[string]*url.URL
+	serviceJwtProvider            map[string]*ServiceJWTProvider
 
 	// keeping it string since these won't have http
-	clusterNameUpstreamURL map[string]string
+	clusterNameToUpstreamURL map[string]string
 
 	mappingKeyFile []byte
 
@@ -42,9 +42,9 @@ type RemoteCall struct {
 func InitRemoteCall(
 	userClusterNameURL string,
 	userClusterToken string,
-	clusterNameInClusterAuthenticatorURL map[string]string,
+	clusterNameToAuthenticatorURL map[string]string,
 	serviceJwtToken map[string]string,
-	clusterNameUpstreamURL map[string]string,
+	clusterNameToUpstreamURL map[string]string,
 	mappingKeyPath string,
 ) (*RemoteCall, error) {
 	userClusterNameURLParsed, err := url.Parse(userClusterNameURL)
@@ -52,14 +52,14 @@ func InitRemoteCall(
 		return nil, fmt.Errorf("error parsing userClusterNameURL %q: %w", userClusterNameURL, err)
 	}
 
-	clusterNameInClusterAuthenticatorURLParsed := make(map[string]*url.URL, len(clusterNameInClusterAuthenticatorURL))
+	clusterNameToAuthenticatorURLParsed := make(map[string]*url.URL, len(clusterNameToAuthenticatorURL))
 
-	for clusterName, clusterURL := range clusterNameInClusterAuthenticatorURL {
+	for clusterName, clusterURL := range clusterNameToAuthenticatorURL {
 		clusterURLParsed, err := url.Parse(clusterURL)
 		if err != nil {
 			return nil, fmt.Errorf("error parsing URL %q: %w", clusterURL, err)
 		}
-		clusterNameInClusterAuthenticatorURLParsed[clusterName] = clusterURLParsed
+		clusterNameToAuthenticatorURLParsed[clusterName] = clusterURLParsed
 	}
 
 	jwtProviders := make(map[string]*ServiceJWTProvider, len(serviceJwtToken))
@@ -77,13 +77,13 @@ func InitRemoteCall(
 	}
 
 	return &RemoteCall{
-		userClusterNameURL:                   userClusterNameURLParsed,
-		userClusterToken:                     userClusterToken,
-		clusterNameInClusterAuthenticatorURL: clusterNameInClusterAuthenticatorURLParsed,
-		serviceJwtProvider:                   jwtProviders,
-		httpClient:                           createHttpClient(),
-		mappingKeyFile:                       key,
-		clusterNameUpstreamURL:               clusterNameUpstreamURL,
+		userClusterNameURL:            userClusterNameURLParsed,
+		userClusterToken:              userClusterToken,
+		clusterNameToAuthenticatorURL: clusterNameToAuthenticatorURLParsed,
+		serviceJwtProvider:            jwtProviders,
+		httpClient:                    createHttpClient(),
+		mappingKeyFile:                key,
+		clusterNameToUpstreamURL:      clusterNameToUpstreamURL,
 	}, nil
 }
 
@@ -108,21 +108,15 @@ func (r *RemoteCall) GetClusterName(username string) (string, error) {
 	}
 
 	req.Header.Set(AuthTokenUserClusterMapping, r.userClusterToken)
-	resp, err := r.performHttpRequest(req)
+	userClusterResponse := UserClusterResponse{}
+	err = r.performHttpRequest(req, &userClusterResponse)
 	if err != nil {
 		return "", fmt.Errorf("error doing http call for GetClusterName: %w", err)
 	}
-
-	userClusterResponse := UserClusterResponse{}
-	err = json.NewDecoder(resp.Body).Decode(&userClusterResponse)
-	if err != nil {
-		return "", fmt.Errorf("error reading response body for GetClusterName: %w", err)
-	}
-
 	return userClusterResponse.ClusterName, nil
 }
 
-func (r *RemoteCall) performHttpRequest(req *http.Request) (*http.Response, error) {
+func (r *RemoteCall) performHttpRequest(req *http.Request, response any) error {
 	// Set custom headers if needed
 	req.Header.Set(UserAgent, UserAgentSSHGateway)
 	req.Header.Set(Accept, ApplicationJson)
@@ -130,7 +124,7 @@ func (r *RemoteCall) performHttpRequest(req *http.Request) (*http.Response, erro
 
 	resp, err := r.httpClient.Do(req)
 	if err != nil {
-		return nil, fmt.Errorf("error making request: %w", err)
+		return fmt.Errorf("error making request: %w", err)
 	}
 	if resp != nil && resp.Body != nil {
 		defer resp.Body.Close()
@@ -139,12 +133,17 @@ func (r *RemoteCall) performHttpRequest(req *http.Request) (*http.Response, erro
 	if resp.StatusCode != http.StatusOK {
 		bodyBytes, err := io.ReadAll(resp.Body)
 		if err != nil {
-			return nil, fmt.Errorf("error reading response body : %w", err)
+			return fmt.Errorf("error reading response body : %w", err)
 		}
-		return nil, fmt.Errorf("error: status code for url: %s, error: %q: %d", req.URL.String(), bodyBytes,
+		return fmt.Errorf("error: status code for url: %s, error: %q: %d", req.URL.String(), bodyBytes,
 			resp.StatusCode)
 	}
-	return resp, nil
+	err = json.NewDecoder(resp.Body).Decode(response)
+	if err != nil {
+		return fmt.Errorf("error reading response body for GetClusterName: %w", err)
+	}
+
+	return nil
 }
 
 // todo: refactor once we have user info in directory svc
@@ -180,15 +179,11 @@ func (r *RemoteCall) AuthenticateKey(
 	}
 
 	req.Header.Set(Authorization, token)
-	resp, err := r.performHttpRequest(req)
+	authResponse := &UserKeyAuthResponse{}
+
+	err = r.performHttpRequest(req, &authResponse)
 	if err != nil {
 		return nil, fmt.Errorf("error performing http request for AuthenticateKey: %w", err)
-	}
-
-	authResponse := &UserKeyAuthResponse{}
-	err = json.NewDecoder(resp.Body).Decode(authResponse)
-	if err != nil {
-		return nil, fmt.Errorf("error marshalling response body: %w", err)
 	}
 
 	return authResponse, nil
@@ -199,7 +194,7 @@ func (r *RemoteCall) MapKey() []byte {
 }
 
 func (r *RemoteCall) GetUpstreamAuthenticatorURL(clusterName string) (string, error) {
-	clusterURL, ok := r.clusterNameInClusterAuthenticatorURL[clusterName]
+	clusterURL, ok := r.clusterNameToAuthenticatorURL[clusterName]
 	if !ok {
 		return "", fmt.Errorf("unknown cluster %q", clusterName)
 	}
@@ -219,7 +214,7 @@ func (r *RemoteCall) getUpstreamAuthenticatorAuthToken(clusterName string) (stri
 }
 
 func (r *RemoteCall) GetUpstreamSvcURL(clusterName string) (string, error) {
-	clusterURL, ok := r.clusterNameUpstreamURL[clusterName]
+	clusterURL, ok := r.clusterNameToUpstreamURL[clusterName]
 	if !ok {
 		return "", fmt.Errorf("unknown upstream cluster %q", clusterName)
 	}
