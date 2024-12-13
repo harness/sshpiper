@@ -33,7 +33,7 @@ const (
 	remoteAuthEndpoints       = "remote-auth-endpoint"
 	remoteAuthEndpointsSecret = "remote-auth-endpoint-secret"
 
-	remoteEndpoint = "remote-endpoint"
+	remoteEndpoints = "remote-endpoints"
 
 	userClusterMappingEndpoint      = "user-cluster-endpoint"
 	userClusterMappingEndpointToken = "user-cluster-endpoint-token"
@@ -62,7 +62,7 @@ func main() {
 			},
 			&cli.GenericFlag{
 				Name:     remoteEndpoints,
-				Usage:    "path to remote endpoint for forwarding traffic",
+				Usage:    "path to remote endpoint for forwarding traffic(given as prod1=url)",
 				EnvVars:  []string{"SSHPIPERD_IN_CLUSTER_ENDPOINTS"},
 				Value:    &remotecall.StringMapFlag{},
 				Required: true,
