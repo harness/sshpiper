@@ -54,8 +54,6 @@ type SshPiperPluginConfig struct {
 
 	PublicKeyCallback func(conn ConnMetadata, key []byte) (*Upstream, error)
 
-	PublicKeyCallbackNew func(conn ConnMetadata, key []byte, keyType string) (*Upstream, error)
-
 	KeyboardInteractiveCallback func(conn ConnMetadata, client KeyboardInteractiveChallenge) (*Upstream, error)
 
 	UpstreamAuthFailureCallback func(conn ConnMetadata, method string, err error, allowmethods []string)
@@ -97,7 +95,7 @@ func NewFromGrpc(config SshPiperPluginConfig, grpc *grpc.Server, listener net.Li
 		grpc:      grpc,
 		listener:  listener,
 		logwriter: w,
-		logs:      make(chan string, 1),
+		logs:      make(chan string, 1000),
 	}
 
 	go func() {
@@ -185,7 +183,7 @@ func (s *server) ListCallbacks(ctx context.Context, req *ListCallbackRequest) (*
 		cb = append(cb, "PasswordAuth")
 	}
 
-	if s.config.PublicKeyCallback != nil || s.config.PublicKeyCallbackNew != nil {
+	if s.config.PublicKeyCallback != nil {
 		cb = append(cb, "PublicKeyAuth")
 	}
 
@@ -288,21 +286,15 @@ func (s *server) PasswordAuth(ctx context.Context, req *PasswordAuthRequest) (*P
 }
 
 func (s *server) PublicKeyAuth(ctx context.Context, req *PublicKeyAuthRequest) (*PublicKeyAuthResponse, error) {
-	if s.config.PublicKeyCallback == nil && s.config.PublicKeyCallbackNew == nil {
+	if s.config.PublicKeyCallback == nil {
 		return nil, status.Errorf(codes.Unimplemented, "method PublicKeyAuth not implemented")
 	}
 
-	var upstream *Upstream
-	var err error
-	// try new callback if available first
-	if s.config.PublicKeyCallbackNew != nil {
-		upstream, err = s.config.PublicKeyCallbackNew(req.Meta, req.PublicKey, req.KeyType)
-	} else {
-		upstream, err = s.config.PublicKeyCallback(req.Meta, req.PublicKey)
-	}
+	upstream, err := s.config.PublicKeyCallback(req.Meta, req.PublicKey)
 	if err != nil {
 		return nil, err
 	}
+
 	return &PublicKeyAuthResponse{
 		Upstream: upstream,
 	}, nil
