@@ -9,7 +9,7 @@ ENV CGO_ENABLED=0
 RUN mkdir -p /sshpiperd/plugins
 WORKDIR /src
 RUN --mount=target=/src,type=bind,source=. --mount=type=cache,target=/root/.cache/go-build if [ "$EXTERNAL" = "1" ]; then cp sshpiperd /sshpiperd; else go build -o /sshpiperd -ldflags "-X main.mainver=$VER" ./cmd/... ; fi
-RUN --mount=target=/src,type=bind,source=. --mount=type=cache,target=/root/.cache/go-build if [ "$EXTERNAL" = "1" ]; then cp -r plugins /sshpiperd ; else go build -o /sshpiperd/plugins -tags "$BUILDTAGS" ./plugin/... ./e2e/testplugin/...; fi
+RUN --mount=target=/src,type=bind,source=. --mount=type=cache,target=/root/.cache/go-build if [ "$EXTERNAL" = "1" ]; then cp -r plugins /sshpiperd ; else go build -o /sshpiperd/plugins -tags "$BUILDTAGS" ./plugin/... ; fi
 ADD entrypoint.sh /sshpiperd
 
 FROM builder as testrunner
@@ -24,7 +24,6 @@ RUN cd /tmp && \
     cp ssh /usr/bin/ssh-9.8.1p1
 
 FROM docker.io/busybox
-# LABEL maintainer="Boshi Lian<farmer1992@gmail.com>"
 
 RUN mkdir /etc/ssh/
 
