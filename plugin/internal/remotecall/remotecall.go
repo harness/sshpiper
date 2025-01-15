@@ -2,9 +2,12 @@ package remotecall
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
+	log "github.com/sirupsen/logrus"
 	"io"
+	"net"
 	"net/http"
 	"net/url"
 	"os"
@@ -25,8 +28,9 @@ const (
 )
 
 type RemoteCall struct {
-	userClusterNameURL *url.URL
-	userClusterToken   string
+	userClusterNameURL     *url.URL
+	userClusterToken       string
+	userClusterURLIsSocket bool
 
 	clusterNameToAuthenticatorURL map[string]*url.URL
 	serviceJwtProvider            map[string]*ServiceJWTProvider
@@ -36,20 +40,29 @@ type RemoteCall struct {
 
 	mappingKeyFile []byte
 
-	httpClient *http.Client
+	httpClient       *http.Client
+	socketHttpClient *http.Client
 }
 
 func InitRemoteCall(
 	userClusterNameURL string,
 	userClusterToken string,
+	userClusterNameURLIsSocket bool,
+	userClusterNameURLSocketEndpoint string,
 	clusterNameToAuthenticatorURL map[string]string,
 	serviceJwtToken map[string]string,
 	clusterNameToUpstreamURL map[string]string,
 	mappingKeyPath string,
 ) (*RemoteCall, error) {
+	log.Info("user cluster endpoint: ", userClusterNameURL)
 	userClusterNameURLParsed, err := url.Parse(userClusterNameURL)
 	if err != nil {
 		return nil, fmt.Errorf("error parsing userClusterNameURL %q: %w", userClusterNameURL, err)
+	}
+
+	var socketHttpClient *http.Client
+	if userClusterNameURLIsSocket == true {
+		socketHttpClient = createSocketHttpClient(userClusterNameURLSocketEndpoint)
 	}
 
 	clusterNameToAuthenticatorURLParsed := make(map[string]*url.URL, len(clusterNameToAuthenticatorURL))
@@ -73,17 +86,19 @@ func InitRemoteCall(
 
 	key, err := os.ReadFile(mappingKeyPath)
 	if err != nil {
-		return nil, fmt.Errorf("error reading mapping key: %w", err)
+		return nil, fmt.Errorf("error reading mapping key for path: %s: %w", mappingKeyPath, err)
 	}
 
 	return &RemoteCall{
 		userClusterNameURL:            userClusterNameURLParsed,
 		userClusterToken:              userClusterToken,
+		userClusterURLIsSocket:        userClusterNameURLIsSocket,
 		clusterNameToAuthenticatorURL: clusterNameToAuthenticatorURLParsed,
 		serviceJwtProvider:            jwtProviders,
 		httpClient:                    createHttpClient(),
 		mappingKeyFile:                key,
 		clusterNameToUpstreamURL:      clusterNameToUpstreamURL,
+		socketHttpClient:              socketHttpClient,
 	}, nil
 }
 
@@ -93,6 +108,19 @@ func createHttpClient() *http.Client {
 		Transport: &http.Transport{
 			MaxIdleConns:    10,
 			IdleConnTimeout: 30 * time.Second,
+		},
+	}
+}
+
+func createSocketHttpClient(socketPath string) *http.Client {
+	return &http.Client{
+		Timeout: 10 * time.Second,
+		Transport: &http.Transport{
+			MaxIdleConns:    10,
+			IdleConnTimeout: 30 * time.Second,
+			DialContext: func(ctx context.Context, network, addr string) (net.Conn, error) {
+				return net.Dial("unix", socketPath)
+			},
 		},
 	}
 }
@@ -109,20 +137,24 @@ func (r *RemoteCall) GetClusterName(username string) (string, error) {
 
 	req.Header.Set(AuthTokenUserClusterMapping, r.userClusterToken)
 	userClusterResponse := UserClusterResponse{}
-	err = r.performHttpRequest(req, &userClusterResponse)
+	httpClient := r.httpClient
+	if r.userClusterURLIsSocket == true {
+		httpClient = r.socketHttpClient
+	}
+	err = r.performHttpRequest(req, httpClient, &userClusterResponse)
 	if err != nil {
 		return "", fmt.Errorf("error doing http call for GetClusterName: %w", err)
 	}
 	return userClusterResponse.ClusterName, nil
 }
 
-func (r *RemoteCall) performHttpRequest(req *http.Request, response any) error {
+func (r *RemoteCall) performHttpRequest(req *http.Request, httpClient *http.Client, response any) error {
 	// Set custom headers if needed
 	req.Header.Set(UserAgent, UserAgentSSHGateway)
 	req.Header.Set(Accept, ApplicationJson)
 	req.Header.Set(ContentType, ApplicationJson)
 
-	resp, err := r.httpClient.Do(req)
+	resp, err := httpClient.Do(req)
 	if err != nil {
 		return fmt.Errorf("error making request: %w", err)
 	}
@@ -181,7 +213,7 @@ func (r *RemoteCall) AuthenticateKey(
 	req.Header.Set(Authorization, token)
 	authResponse := &UserKeyAuthResponse{}
 
-	err = r.performHttpRequest(req, &authResponse)
+	err = r.performHttpRequest(req, r.httpClient, &authResponse)
 	if err != nil {
 		return nil, fmt.Errorf("error performing http request for AuthenticateKey: %w", err)
 	}
