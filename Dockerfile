@@ -43,7 +43,7 @@
 #
 #ENTRYPOINT ["/sshpiperd/entrypoint.sh"]
 
-FROM docker.io/golang:1.23-bookworm as builder
+FROM us.gcr.io/platform-205701/harness/ubi8/go1:1.22.7 as builder
 
 ARG VER=devel
 ARG BUILDTAGS="remotecall"
