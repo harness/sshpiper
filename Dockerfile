@@ -56,6 +56,8 @@ USER root
 
 RUN mkdir -p /sshpiperd/plugins
 WORKDIR /app
+
+# Install git and Go 1.23
 RUN dnf makecache
 RUN dnf install -y git
 RUN curl -fsSL https://go.dev/dl/go1.23.4.linux-amd64.tar.gz -o /tmp/go1.23.linux-amd64.tar.gz
@@ -63,13 +65,15 @@ RUN tar -C /usr/local -xzf /tmp/go1.23.linux-amd64.tar.gz
 ENV PATH="/usr/local/go/bin:${PATH}"
 RUN go version
 
+# Initialize and update submodules (recursive)
 RUN git config --global --add safe.directory '/app'
 COPY . .
 
-RUN git submodule init
-RUN git submodule update
-# Debug step to check if the source code is being mounted correctly
-RUN ls /app/cmd
+# Ensure submodules are properly initialized and updated (including recursive)
+RUN git submodule update --init --recursive
+
+# Debug step to check if the submodule is being fetched correctly
+RUN ls /app/crypto
 
 RUN --mount=target=/app,type=bind,source=. --mount=type=cache,target=/root/.cache/go-build \
     if [ "$EXTERNAL" = "1" ]; then cp sshpiperd /sshpiperd; else \
@@ -80,31 +84,3 @@ RUN --mount=target=/app,type=bind,source=. --mount=type=cache,target=/root/.cach
     go build -o /sshpiperd/plugins -tags "$BUILDTAGS" ./plugin/...; fi
 
 ADD entrypoint.sh /sshpiperd
-
-FROM builder as testrunner
-RUN apt update && apt install -y autoconf automake libssl-dev libz-dev
-
-RUN cd /tmp && \
-    curl -fsSL https://github.com/openssh/openssh-portable/archive/refs/tags/V_9_8_P1.tar.gz | tar xz && \
-    cd openssh-portable-V_9_8_P1 && \
-    autoreconf && \
-    ./configure && \
-    make ssh && \
-    cp ssh /usr/bin/ssh-9.8.1p1
-
-FROM docker.io/busybox
-
-RUN mkdir /etc/ssh/
-
-ARG USERID=1000
-ARG GROUPID=1000
-RUN addgroup -g $GROUPID -S sshpiperd && adduser -u $USERID -S sshpiperd -G sshpiperd
-
-RUN chown -R $USERID:$GROUPID /etc/ssh/
-
-USER $USERID:$GROUPID
-
-COPY --from=builder --chown=$USERID /sshpiperd/ /sshpiperd
-EXPOSE 2222
-
-ENTRYPOINT ["/sshpiperd/entrypoint.sh"]
