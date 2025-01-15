@@ -43,7 +43,7 @@
 #
 #ENTRYPOINT ["/sshpiperd/entrypoint.sh"]
 
-FROM us.gcr.io/platform-205701/harness/ubi8/go1:1.22.7 as builder
+FROM redhat/ubi8 as builder
 
 ARG VER=devel
 ARG BUILDTAGS="remotecall"
@@ -56,10 +56,17 @@ USER root
 
 RUN mkdir -p /sshpiperd/plugins
 WORKDIR /app
-COPY . .
-RUN microdnf install git
-RUN git config --global --add safe.directory '/app'
+RUN dnf makecache
+RUN dnf install -y git
+RUN curl -fsSL https://go.dev/dl/go1.23.4.linux-amd64.tar.gz -o /tmp/go1.23.linux-amd64.tar.gz
+RUN tar -C /usr/local -xzf /tmp/go1.23.linux-amd64.tar.gz
+ENV PATH="/usr/local/go/bin:${PATH}"
+RUN go version
 
+RUN git config --global --add safe.directory '/app'
+COPY . .
+
+RUN git  init
 RUN git submodule init
 RUN git submodule update
 # Debug step to check if the source code is being mounted correctly
