@@ -47,7 +47,6 @@ FROM redhat/ubi8 as builder
 
 ARG VER=devel
 ARG BUILDTAGS="remotecall"
-ARG EXTERNAL="0"
 
 ENV CGO_ENABLED=0
 ENV PLUGIN="remotecall"
@@ -71,17 +70,13 @@ COPY . .
 
 # Ensure submodules are properly initialized and updated (including recursive)
 RUN git submodule update --init --recursive
-RUN go get golang.org/x/crypto
+RUN go mod tidy
 
 # Debug step to check if the submodule is being fetched correctly
 RUN ls /app/crypto
 
-RUN --mount=target=/app,type=bind,source=. --mount=type=cache,target=/root/.cache/go-build \
-    if [ "$EXTERNAL" = "1" ]; then cp sshpiperd /sshpiperd; else \
-    go build -o /sshpiperd -ldflags "-X main.mainver=$VER" /app/cmd/...; fi
+RUN go build -o /sshpiperd -ldflags "-X main.mainver=$VER" /app/cmd/...
 
-RUN --mount=target=/app,type=bind,source=. --mount=type=cache,target=/root/.cache/go-build \
-    if [ "$EXTERNAL" = "1" ]; then cp -r plugins /sshpiperd; else \
-    go build -o /sshpiperd/plugins -tags "$BUILDTAGS" /app/plugin/...; fi
+RUN go build -o /sshpiperd/plugins -tags "$BUILDTAGS" /app/plugin/...
 
 ADD entrypoint.sh /sshpiperd
