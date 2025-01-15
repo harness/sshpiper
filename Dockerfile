@@ -65,12 +65,11 @@ ENV PATH="/usr/local/go/bin:${PATH}"
 RUN go version
 
 # Initialize and update submodules (recursive)
-RUN git config --global --add safe.directory '/app'
 COPY . .
-
+RUN git config --global --add safe.directory '/app'
+RUN git submodule init
 # Ensure submodules are properly initialized and updated (including recursive)
-RUN git submodule update --init --recursive
-RUN go mod tidy
+RUN git submodule update
 
 # Debug step to check if the submodule is being fetched correctly
 RUN ls /app/crypto
