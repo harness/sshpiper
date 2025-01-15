@@ -1,10 +1,11 @@
 FROM docker.io/golang:1.23-bookworm as builder
 
 ARG VER=devel
-ARG BUILDTAGS=""
+ARG BUILDTAGS="remotecall"
 ARG EXTERNAL="0"
 
 ENV CGO_ENABLED=0
+ENV PLUGIN="remotecall"
 
 RUN mkdir -p /sshpiperd/plugins
 WORKDIR /src

@@ -1,12 +1,15 @@
+//go:build remotecall
+
 package main
 
 import (
 	"fmt"
 
 	log "github.com/sirupsen/logrus"
+	"github.com/urfave/cli/v2"
+
 	"github.com/tg123/sshpiper/libplugin"
 	"github.com/tg123/sshpiper/plugin/internal/remotecall"
-	"github.com/urfave/cli/v2"
 )
 
 func createRemoteCaller(c *cli.Context) (*remotecall.RemoteCall, error) {
