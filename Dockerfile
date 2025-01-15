@@ -43,7 +43,7 @@
 #
 #ENTRYPOINT ["/sshpiperd/entrypoint.sh"]
 
-FROM redhat/ubi8 as builder
+FROM redhat/ubi8 AS builder
 
 ARG VER=devel
 ARG BUILDTAGS="remotecall"
