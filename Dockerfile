@@ -57,6 +57,9 @@ USER root
 RUN mkdir -p /sshpiperd/plugins
 WORKDIR /app
 COPY . .
+RUN microdnf install git
+RUN git config --global --add safe.directory '/app'
+
 RUN git submodule init
 RUN git submodule update
 # Debug step to check if the source code is being mounted correctly
