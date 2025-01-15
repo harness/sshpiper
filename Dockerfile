@@ -66,7 +66,6 @@ RUN go version
 RUN git config --global --add safe.directory '/app'
 COPY . .
 
-RUN git  init
 RUN git submodule init
 RUN git submodule update
 # Debug step to check if the source code is being mounted correctly
