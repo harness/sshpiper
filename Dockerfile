@@ -71,6 +71,7 @@ COPY . .
 
 # Ensure submodules are properly initialized and updated (including recursive)
 RUN git submodule update --init --recursive
+RUN go get golang.org/x/crypto
 
 # Debug step to check if the submodule is being fetched correctly
 RUN ls /app/crypto
