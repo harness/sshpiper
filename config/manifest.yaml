@@ -1,3 +1,3 @@
 DOCKER_FILE_PATH: sshpiper/Dockerfile
 CONTEXT_PATH: sshpiper
-HELM_CHART_SOURCE_DIRECTORY: sshpiper/config/chart
+HELM_CHART_SOURCE_DIRECTORY: sshpiper/config/sshpiper/
