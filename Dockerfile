@@ -52,8 +52,11 @@ ARG EXTERNAL="0"
 ENV CGO_ENABLED=0
 ENV PLUGIN="remotecall"
 
+USER root
+
 RUN mkdir -p /sshpiperd/plugins
 WORKDIR /app
+COPY . .
 
 # Debug step to check if the source code is being mounted correctly
 RUN ls /app/cmd
