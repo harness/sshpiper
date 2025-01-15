@@ -57,7 +57,8 @@ USER root
 RUN mkdir -p /sshpiperd/plugins
 WORKDIR /app
 COPY . .
-
+RUN git submodule init
+RUN git submodule update
 # Debug step to check if the source code is being mounted correctly
 RUN ls /app/cmd
 
