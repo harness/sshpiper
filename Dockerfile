@@ -19,8 +19,8 @@ RUN git submodule init
 # Ensure submodules are properly initialized and updated (including recursive)
 RUN git submodule update
 
-RUN  go build -o /sshpiperd -ldflags "-X main.mainver=$VER" ./cmd/... ; fi
-RUN  go build -o /sshpiperd/plugins  ./plugin/... ./e2e/testplugin/...; fi
+RUN  go build -o /sshpiperd -ldflags "-X main.mainver=$VER" ./cmd/... 
+RUN  go build -o /sshpiperd/plugins  ./plugin/...
 ADD entrypoint.sh /sshpiperd
 
 FROM builder AS testrunner
