@@ -54,7 +54,6 @@ func InitRemoteCall(
 	clusterNameToUpstreamURL map[string]string,
 	mappingKeyPath string,
 ) (*RemoteCall, error) {
-	log.Info("user cluster endpoint: ", userClusterNameURL)
 	userClusterNameURLParsed, err := url.Parse(userClusterNameURL)
 	if err != nil {
 		return nil, fmt.Errorf("error parsing userClusterNameURL %q: %w", userClusterNameURL, err)
