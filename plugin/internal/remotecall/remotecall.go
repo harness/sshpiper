@@ -1,5 +1,3 @@
-//go:build remotecall
-
 package remotecall
 
 import (
