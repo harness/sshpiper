@@ -1,38 +1,15 @@
-FROM redhat/ubi8 AS builder
+FROM docker.io/golang:1.23-bookworm as builder
 
 ARG VER=devel
 ARG BUILDTAGS="remotecall"
+ARG EXTERNAL="0"
 
 ENV CGO_ENABLED=0
-ENV PLUGIN="remotecall"
-
-USER root
 
 RUN mkdir -p /sshpiperd/plugins
-WORKDIR /app
-
-# Install git and Go 1.23
-RUN dnf makecache
-RUN dnf install -y git
-RUN curl -fsSL https://go.dev/dl/go1.23.4.linux-amd64.tar.gz -o /tmp/go1.23.linux-amd64.tar.gz
-RUN tar -C /usr/local -xzf /tmp/go1.23.linux-amd64.tar.gz
-ENV PATH="/usr/local/go/bin:${PATH}"
-RUN go version
-
-# Initialize and update submodules (recursive)
-COPY . .
-RUN git config --global --add safe.directory '/app'
-RUN git submodule init
-# Ensure submodules are properly initialized and updated (including recursive)
-RUN git submodule update
-
-# Debug step to check if the submodule is being fetched correctly
-RUN ls /app/crypto
-
-RUN go build -o /sshpiperd -ldflags "-X main.mainver=$VER" /app/cmd/...
-
-RUN go build -o /sshpiperd/plugins -tags "$BUILDTAGS" /app/plugin/...
-
+WORKDIR /src
+RUN  if [ "$EXTERNAL" = "1" ]; then cp sshpiperd /sshpiperd; else go build -o /sshpiperd -ldflags "-X main.mainver=$VER" ./cmd/... ; fi
+RUN  if [ "$EXTERNAL" = "1" ]; then cp -r plugins /sshpiperd ; else go build -o /sshpiperd/plugins -tags "$BUILDTAGS" ./plugin/... ./e2e/testplugin/...; fi
 ADD entrypoint.sh /sshpiperd
 
 FROM builder as testrunner
