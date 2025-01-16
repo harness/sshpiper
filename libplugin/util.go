@@ -2,11 +2,11 @@ package libplugin
 
 import (
 	"fmt"
+	"github.com/sirupsen/logrus"
 	"io"
 	"net"
 	"strconv"
 
-	"github.com/sirupsen/logrus"
 	"golang.org/x/crypto/ssh"
 	"golang.org/x/crypto/ssh/knownhosts"
 )
