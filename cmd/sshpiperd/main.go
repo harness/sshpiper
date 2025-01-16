@@ -10,8 +10,9 @@ import (
 
 	"github.com/pires/go-proxyproto"
 	log "github.com/sirupsen/logrus"
-	"github.com/tg123/sshpiper/cmd/sshpiperd/internal/plugin"
 	"github.com/urfave/cli/v2"
+
+	"github.com/tg123/sshpiper/cmd/sshpiperd/internal/plugin"
 )
 
 var mainver string = "(devel)"
@@ -186,7 +187,14 @@ func main() {
 			}
 
 			log.SetLevel(level)
-
+			log.SetFormatter(&log.JSONFormatter{
+				FieldMap: log.FieldMap{
+					log.FieldKeyTime:  "timestamp",
+					log.FieldKeyLevel: "severity",
+					log.FieldKeyMsg:   "message",
+				},
+				TimestampFormat: time.RFC3339Nano,
+			})
 			logFormat := ctx.String("log-format")
 			if !isValidLogFormat(logFormat) {
 				return fmt.Errorf("not a valid log-format: %v", logFormat)
