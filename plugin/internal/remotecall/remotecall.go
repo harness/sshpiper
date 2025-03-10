@@ -199,6 +199,9 @@ func (r *RemoteCall) AuthenticateKey(
 		SshKeyObject: sshKeyObj,
 		AccountId:    accountId,
 	}
+
+	log.Infof("body for auth %v", auth)
+
 	body, err := json.Marshal(auth)
 	if err != nil {
 		return nil, fmt.Errorf("error marshalling auth: %v", auth)
