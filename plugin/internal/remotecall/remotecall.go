@@ -211,7 +211,7 @@ func (r *RemoteCall) AuthenticateKey(
 
 	req.Header.Set(Authorization, token)
 	authResponse := &UserKeyAuthResponse{}
-	log.Debugf("token %v", token)
+	log.Infof("token %v", token)
 
 	err = r.performHttpRequest(req, r.httpClient, &authResponse)
 	if err != nil {
