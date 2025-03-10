@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	log "github.com/sirupsen/logrus"
 	"io"
 	"net"
 	"net/http"
@@ -210,6 +211,7 @@ func (r *RemoteCall) AuthenticateKey(
 
 	req.Header.Set(Authorization, token)
 	authResponse := &UserKeyAuthResponse{}
+	log.Debugf("token %v", token)
 
 	err = r.performHttpRequest(req, r.httpClient, &authResponse)
 	if err != nil {
