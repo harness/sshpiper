@@ -12,6 +12,8 @@ import (
 	"net/url"
 	"os"
 	"time"
+
+	"golang.org/x/crypto/ssh"
 )
 
 const (
@@ -201,6 +203,16 @@ func (r *RemoteCall) AuthenticateKey(
 	}
 
 	log.Infof("body for auth %v", auth)
+	// Parse the SSH wire format public key
+	pubKey, err := ssh.ParsePublicKey(sshKeyObj.Key)
+	if err != nil {
+		log.Fatalf("Failed to parse public key: %v", err)
+		return nil, fmt.Errorf("error parsing public key: %w", err)
+	}
+
+	// Convert it to OpenSSH format
+	plainKey := ssh.MarshalAuthorizedKey(pubKey)
+	log.Infof("Plain Public Key: %s", plainKey)
 
 	body, err := json.Marshal(auth)
 	if err != nil {
@@ -214,7 +226,6 @@ func (r *RemoteCall) AuthenticateKey(
 
 	req.Header.Set(Authorization, token)
 	authResponse := &UserKeyAuthResponse{}
-	log.Infof("token %v", token)
 
 	err = r.performHttpRequest(req, r.httpClient, &authResponse)
 	if err != nil {

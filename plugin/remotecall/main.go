@@ -124,17 +124,19 @@ func getPublicKeyCallback(
 	keytype string,
 	caller *remotecall.RemoteCall,
 ) (*libplugin.Upstream, error) {
-	clusterName, err := caller.GetClusterName(conn.User())
+	//clusterName, err := caller.GetClusterName(conn.User())
 	log.Debugf("username %s", conn.User())
-	if err != nil {
-		return nil, fmt.Errorf("error getting cluster name from user: %w", err)
-	}
+	//if err != nil {
+	//	return nil, fmt.Errorf("error getting cluster name from user: %w", err)
+	//}
 
-	clusterAuthnURL, err := caller.GetUpstreamAuthenticatorURL(clusterName)
-	if err != nil {
-		return nil, fmt.Errorf("error getting authenticator url from cluster name: %w", err)
-	}
+	//clusterAuthnURL, err := caller.GetUpstreamAuthenticatorURL(clusterName)
+	//if err != nil {
+	//	return nil, fmt.Errorf("error getting authenticator url from cluster name: %w", err)
+	//}
 
+	clusterName := "prod1"
+	clusterAuthnURL := "http://localhost:9090/user"
 	authResponse, err := caller.AuthenticateKey(key, keytype, clusterAuthnURL, clusterName, conn.User())
 	if err != nil {
 		return nil, fmt.Errorf("error authenticating to clusterUrl %q: %w", clusterAuthnURL, err)
