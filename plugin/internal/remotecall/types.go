@@ -5,6 +5,7 @@ import "github.com/golang-jwt/jwt"
 type userKeyAuthRequest struct {
 	AccountId    string       `json:"accountIdentifier"`
 	SshKeyObject sshKeyObject `json:"sshKeyObject"`
+	SshKey       string       `json:"sshKey"`
 }
 
 type sshKeyObject struct {

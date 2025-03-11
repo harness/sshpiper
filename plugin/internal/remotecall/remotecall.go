@@ -183,7 +183,7 @@ func (r *RemoteCall) performHttpRequest(req *http.Request, httpClient *http.Clie
 
 func (r *RemoteCall) AuthenticateKey(
 	key []byte,
-	keyType string,
+	_ string,
 	clusterURL string,
 	clusterName string,
 	accountId string,
@@ -193,18 +193,8 @@ func (r *RemoteCall) AuthenticateKey(
 		return nil, fmt.Errorf("error getting authenticator token from cluster name: %w", err)
 	}
 
-	sshKeyObj := sshKeyObject{
-		Key:       key,
-		Algorithm: keyType,
-	}
-	auth := userKeyAuthRequest{
-		SshKeyObject: sshKeyObj,
-		AccountId:    accountId,
-	}
-
-	log.Infof("body for auth %v", auth)
 	// Parse the SSH wire format public key
-	pubKey, err := ssh.ParsePublicKey(sshKeyObj.Key)
+	pubKey, err := ssh.ParsePublicKey(key)
 	if err != nil {
 		log.Fatalf("Failed to parse public key: %v", err)
 		return nil, fmt.Errorf("error parsing public key: %w", err)
@@ -213,6 +203,12 @@ func (r *RemoteCall) AuthenticateKey(
 	// Convert it to OpenSSH format
 	plainKey := ssh.MarshalAuthorizedKey(pubKey)
 	log.Infof("Plain Public Key: %s", plainKey)
+
+	auth := userKeyAuthRequest{
+		AccountId: accountId,
+		SshKey:    string(plainKey),
+	}
+	log.Infof("body for auth %v", auth)
 
 	body, err := json.Marshal(auth)
 	if err != nil {
