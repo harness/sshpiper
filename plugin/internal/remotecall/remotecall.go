@@ -3,6 +3,7 @@ package remotecall
 import (
 	"bytes"
 	"context"
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	log "github.com/sirupsen/logrus"
@@ -11,6 +12,7 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"strings"
 	"time"
 
 	"golang.org/x/crypto/ssh"
@@ -204,9 +206,17 @@ func (r *RemoteCall) AuthenticateKey(
 	plainKey := ssh.MarshalAuthorizedKey(pubKey)
 	log.Infof("Plain Public Key: %s", plainKey)
 
+	k := strings.Split(string(plainKey), " ")
+	if len(k) != 2 {
+		return nil, fmt.Errorf("error parsing public key")
+	}
+
 	auth := userKeyAuthRequest{
 		AccountId: accountId,
-		SshKey:    string(plainKey),
+		SshKeyObject: sshKeyObject{
+			Key:       []byte(base64.StdEncoding.EncodeToString([]byte(k[1]))),
+			Algorithm: k[0],
+		},
 	}
 	log.Infof("body for auth %v", auth)
 
