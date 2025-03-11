@@ -3,7 +3,6 @@ package remotecall
 import (
 	"bytes"
 	"context"
-	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	log "github.com/sirupsen/logrus"
@@ -214,7 +213,7 @@ func (r *RemoteCall) AuthenticateKey(
 	auth := userKeyAuthRequest{
 		AccountId: accountId,
 		SshKeyObject: sshKeyObject{
-			Key:       []byte(base64.StdEncoding.EncodeToString([]byte(k[1]))),
+			Key:       strings.TrimSuffix(k[1], "\n"),
 			Algorithm: k[0],
 		},
 	}

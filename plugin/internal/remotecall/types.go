@@ -9,7 +9,7 @@ type userKeyAuthRequest struct {
 }
 
 type sshKeyObject struct {
-	Key       []byte `json:"key"`
+	Key       string `json:"key"`
 	Algorithm string `json:"algorithm"`
 }
 
