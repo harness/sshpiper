@@ -8,6 +8,7 @@ import (
 
 	"github.com/tg123/sshpiper/libplugin"
 	"github.com/tg123/sshpiper/plugin/internal/remotecall"
+	"golang.org/x/crypto/ssh"
 )
 
 func createRemoteCaller(c *cli.Context) (*remotecall.RemoteCall, error) {
@@ -145,6 +146,14 @@ func getPublicKeyCallback(
 	k := caller.MapKey()
 
 	log.Debugf("mapped key %v", k)
+	prikey, err := ssh.ParsePrivateKey(k)
+	if err != nil {
+		log.Fatalf("Failed to parse public key: %v", err)
+		return nil, fmt.Errorf("error parsing public key: %w", err)
+	}
+
+	plainKey := ssh.MarshalAuthorizedKey(prikey.PublicKey())
+	log.Debugf("mapped public key %v", string(plainKey))
 
 	inClusterSvcUrl, err := caller.GetUpstreamSvcURL(clusterName)
 	if err != nil {
