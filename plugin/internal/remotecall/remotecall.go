@@ -3,6 +3,7 @@ package remotecall
 import (
 	"bytes"
 	"context"
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	log "github.com/sirupsen/logrus"
@@ -41,7 +42,7 @@ type RemoteCall struct {
 	// keeping it string since these won't have http
 	clusterNameToUpstreamURL map[string]string
 
-	mappingKeyFile []byte
+	mappingKeyFileData []byte
 
 	httpClient       *http.Client
 	socketHttpClient *http.Client
@@ -86,11 +87,18 @@ func InitRemoteCall(
 		jwtProviders[clusterName] = serviceJWTProvider
 	}
 
-	key, err := os.ReadFile(mappingKeyPath)
-	log.Debugf("mapping key file data %q", key)
+	encodedData, err := os.ReadFile(mappingKeyPath)
 	if err != nil {
-		return nil, fmt.Errorf("error reading mapping key for path: %s: %w", mappingKeyPath, err)
+		return nil, fmt.Errorf("error reading mapping file: %w", err)
 	}
+
+	// Decode the base64 encoded data
+	decodedData, err := base64.StdEncoding.DecodeString(string(encodedData))
+	if err != nil {
+		return nil, fmt.Errorf("error decoding base64: %w", err)
+	}
+
+	log.Debugf("mapping key file data %q", decodedData)
 
 	return &RemoteCall{
 		userClusterNameURL:            userClusterNameURLParsed,
@@ -99,7 +107,7 @@ func InitRemoteCall(
 		clusterNameToAuthenticatorURL: clusterNameToAuthenticatorURLParsed,
 		serviceJwtProvider:            jwtProviders,
 		httpClient:                    createHttpClient(),
-		mappingKeyFile:                key,
+		mappingKeyFileData:            decodedData,
 		clusterNameToUpstreamURL:      clusterNameToUpstreamURL,
 		socketHttpClient:              socketHttpClient,
 	}, nil
@@ -240,7 +248,7 @@ func (r *RemoteCall) AuthenticateKey(
 }
 
 func (r *RemoteCall) MapKey() []byte {
-	return r.mappingKeyFile
+	return r.mappingKeyFileData
 }
 
 func (r *RemoteCall) GetUpstreamAuthenticatorURL(clusterName string) (string, error) {

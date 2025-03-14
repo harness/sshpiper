@@ -95,7 +95,7 @@ func main() {
 			},
 			&cli.PathFlag{
 				Name:    mappingKeyPath,
-				Usage:   "mapping key for upstream",
+				Usage:   "mapping key path for upstream (base64 encoded content)",
 				EnvVars: []string{"SSHPIPERD_MAPPING_KEY_PATH"},
 			},
 		},
