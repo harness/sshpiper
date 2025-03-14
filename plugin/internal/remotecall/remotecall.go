@@ -87,6 +87,7 @@ func InitRemoteCall(
 	}
 
 	key, err := os.ReadFile(mappingKeyPath)
+	log.Debugf("mapping key file data %q", key)
 	if err != nil {
 		return nil, fmt.Errorf("error reading mapping key for path: %s: %w", mappingKeyPath, err)
 	}
@@ -203,7 +204,6 @@ func (r *RemoteCall) AuthenticateKey(
 
 	// Convert it to OpenSSH format
 	plainKey := ssh.MarshalAuthorizedKey(pubKey)
-	log.Infof("Plain Public Key: %s", plainKey)
 
 	k := strings.Split(string(plainKey), " ")
 	if len(k) != 2 {
@@ -217,7 +217,6 @@ func (r *RemoteCall) AuthenticateKey(
 			Algorithm: k[0],
 		},
 	}
-	log.Infof("body for auth %v", auth)
 
 	body, err := json.Marshal(auth)
 	if err != nil {
