@@ -141,6 +141,8 @@ func getPublicKeyCallback(
 		return nil, fmt.Errorf("error authenticating to clusterUrl %q: %w", clusterAuthnURL, err)
 	}
 
+	k := caller.MapKey()
+
 	inClusterSvcUrl, err := caller.GetUpstreamSvcURL(clusterName)
 	if err != nil {
 		return nil, fmt.Errorf("error getting upstream url for cluster %q: %w", clusterName, err)
