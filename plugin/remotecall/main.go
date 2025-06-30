@@ -135,31 +135,23 @@ func getPublicKeyCallback(
 	if err != nil {
 		return nil, fmt.Errorf("error getting authenticator url from cluster name: %w", err)
 	}
-	log.Debugf("completed getting upstream auth url %s", clusterAuthnURL)
 
 	authResponse, err := caller.AuthenticateKey(key, keytype, clusterAuthnURL, clusterName, conn.User())
 	if err != nil {
 		return nil, fmt.Errorf("error authenticating to clusterUrl %q: %w", clusterAuthnURL, err)
 	}
-	log.Debugf("completed  auth resp %v", authResponse)
 
 	k := caller.MapKey()
 
-	log.Debugf("mapped key %v", k)
 	prikey, err := ssh.ParsePrivateKey(k)
 	if err != nil {
-		log.Fatalf("Failed to parse public key: %v", err)
 		return nil, fmt.Errorf("error parsing public key: %w", err)
 	}
-
-	plainKey := ssh.MarshalAuthorizedKey(prikey.PublicKey())
-	log.Debugf("mapped public key %v", string(plainKey))
 
 	inClusterSvcUrl, err := caller.GetUpstreamSvcURL(clusterName)
 	if err != nil {
 		return nil, fmt.Errorf("error getting upstream url for cluster %q: %w", clusterName, err)
 	}
-	log.Debugf("completed  incluster resp %s", inClusterSvcUrl)
 
 	host, port, err := libplugin.SplitHostPortForSSH(inClusterSvcUrl)
 	if err != nil {
@@ -174,7 +166,6 @@ func getPublicKeyCallback(
 		Auth:          libplugin.CreatePrivateKeyAuth(k),
 		IgnoreHostKey: true,
 	}
-	log.Debugf("final daata: %v", v)
 
 	return &v, nil
 }
