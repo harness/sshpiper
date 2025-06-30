@@ -152,13 +152,11 @@ func getPublicKeyCallback(
 			inClusterSvcUrl, err)
 	}
 
-	v := libplugin.Upstream{
+	return &libplugin.Upstream{
 		Host:          host,
 		Port:          int32(port),
 		UserName:      generateUpstreamUserName(authResponse),
 		Auth:          libplugin.CreatePrivateKeyAuth(k),
 		IgnoreHostKey: true,
-	}
-
-	return &v, nil
+	}, nil
 }
