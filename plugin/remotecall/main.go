@@ -8,7 +8,6 @@ import (
 
 	"github.com/tg123/sshpiper/libplugin"
 	"github.com/tg123/sshpiper/plugin/internal/remotecall"
-	"golang.org/x/crypto/ssh"
 )
 
 func createRemoteCaller(c *cli.Context) (*remotecall.RemoteCall, error) {
