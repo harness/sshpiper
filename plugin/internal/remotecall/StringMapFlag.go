@@ -16,7 +16,7 @@ func (f *StringMapFlag) Set(value string) error {
 	if f.Value == nil {
 		f.Value = make(map[string]string)
 	}
-	allItems := strings.SplitN(value, ",", -1)
+	allItems := strings.Split(value, ",")
 	for _, item := range allItems {
 		parts := strings.SplitN(item, "=", 2)
 		if len(parts) != 2 {
