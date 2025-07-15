@@ -2,13 +2,20 @@ package remotecall
 
 import (
 	"bytes"
+	"context"
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
+	log "github.com/sirupsen/logrus"
 	"io"
+	"net"
 	"net/http"
 	"net/url"
 	"os"
+	"strings"
 	"time"
+
+	"golang.org/x/crypto/ssh"
 )
 
 const (
@@ -25,8 +32,9 @@ const (
 )
 
 type RemoteCall struct {
-	userClusterNameURL *url.URL
-	userClusterToken   string
+	userClusterNameURL     *url.URL
+	userClusterToken       string
+	userClusterURLIsSocket bool
 
 	clusterNameToAuthenticatorURL map[string]*url.URL
 	serviceJwtProvider            map[string]*ServiceJWTProvider
@@ -34,14 +42,16 @@ type RemoteCall struct {
 	// keeping it string since these won't have http
 	clusterNameToUpstreamURL map[string]string
 
-	mappingKeyFile []byte
+	mappingKeyFileData []byte
 
-	httpClient *http.Client
+	httpClient       *http.Client
+	socketHttpClient *http.Client
 }
 
 func InitRemoteCall(
 	userClusterNameURL string,
 	userClusterToken string,
+	userClusterNameURLSocketPath string,
 	clusterNameToAuthenticatorURL map[string]string,
 	serviceJwtToken map[string]string,
 	clusterNameToUpstreamURL map[string]string,
@@ -50,6 +60,14 @@ func InitRemoteCall(
 	userClusterNameURLParsed, err := url.Parse(userClusterNameURL)
 	if err != nil {
 		return nil, fmt.Errorf("error parsing userClusterNameURL %q: %w", userClusterNameURL, err)
+	}
+
+	var socketHttpClient *http.Client
+	userClusterURLIsSocket := false
+
+	if userClusterNameURLSocketPath != "" {
+		userClusterURLIsSocket = true
+		socketHttpClient = createSocketHttpClient(userClusterNameURLSocketPath)
 	}
 
 	clusterNameToAuthenticatorURLParsed := make(map[string]*url.URL, len(clusterNameToAuthenticatorURL))
@@ -71,19 +89,29 @@ func InitRemoteCall(
 		jwtProviders[clusterName] = serviceJWTProvider
 	}
 
-	key, err := os.ReadFile(mappingKeyPath)
+	encodedData, err := os.ReadFile(mappingKeyPath)
 	if err != nil {
-		return nil, fmt.Errorf("error reading mapping key: %w", err)
+		return nil, fmt.Errorf("error reading mapping file: %w", err)
 	}
+
+	// Decode the base64 encoded data
+	decodedData, err := base64.StdEncoding.DecodeString(string(encodedData))
+	if err != nil {
+		return nil, fmt.Errorf("error decoding base64: %w", err)
+	}
+
+	log.Debugf("mapping key file data %q", decodedData)
 
 	return &RemoteCall{
 		userClusterNameURL:            userClusterNameURLParsed,
 		userClusterToken:              userClusterToken,
+		userClusterURLIsSocket:        userClusterURLIsSocket,
 		clusterNameToAuthenticatorURL: clusterNameToAuthenticatorURLParsed,
 		serviceJwtProvider:            jwtProviders,
 		httpClient:                    createHttpClient(),
-		mappingKeyFile:                key,
+		mappingKeyFileData:            decodedData,
 		clusterNameToUpstreamURL:      clusterNameToUpstreamURL,
+		socketHttpClient:              socketHttpClient,
 	}, nil
 }
 
@@ -93,6 +121,19 @@ func createHttpClient() *http.Client {
 		Transport: &http.Transport{
 			MaxIdleConns:    10,
 			IdleConnTimeout: 30 * time.Second,
+		},
+	}
+}
+
+func createSocketHttpClient(socketPath string) *http.Client {
+	return &http.Client{
+		Timeout: 10 * time.Second,
+		Transport: &http.Transport{
+			MaxIdleConns:    10,
+			IdleConnTimeout: 30 * time.Second,
+			DialContext: func(ctx context.Context, network, addr string) (net.Conn, error) {
+				return net.Dial("unix", socketPath)
+			},
 		},
 	}
 }
@@ -109,20 +150,24 @@ func (r *RemoteCall) GetClusterName(username string) (string, error) {
 
 	req.Header.Set(AuthTokenUserClusterMapping, r.userClusterToken)
 	userClusterResponse := UserClusterResponse{}
-	err = r.performHttpRequest(req, &userClusterResponse)
+	httpClient := r.httpClient
+	if r.userClusterURLIsSocket == true {
+		httpClient = r.socketHttpClient
+	}
+	err = r.performHttpRequest(req, httpClient, &userClusterResponse)
 	if err != nil {
 		return "", fmt.Errorf("error doing http call for GetClusterName: %w", err)
 	}
 	return userClusterResponse.ClusterName, nil
 }
 
-func (r *RemoteCall) performHttpRequest(req *http.Request, response any) error {
+func (r *RemoteCall) performHttpRequest(req *http.Request, httpClient *http.Client, response any) error {
 	// Set custom headers if needed
 	req.Header.Set(UserAgent, UserAgentSSHGateway)
 	req.Header.Set(Accept, ApplicationJson)
 	req.Header.Set(ContentType, ApplicationJson)
 
-	resp, err := r.httpClient.Do(req)
+	resp, err := httpClient.Do(req)
 	if err != nil {
 		return fmt.Errorf("error making request: %w", err)
 	}
@@ -150,7 +195,7 @@ func (r *RemoteCall) performHttpRequest(req *http.Request, response any) error {
 
 func (r *RemoteCall) AuthenticateKey(
 	key []byte,
-	keyType string,
+	_ string,
 	clusterURL string,
 	clusterName string,
 	accountId string,
@@ -160,14 +205,29 @@ func (r *RemoteCall) AuthenticateKey(
 		return nil, fmt.Errorf("error getting authenticator token from cluster name: %w", err)
 	}
 
-	sshKeyObj := sshKeyObject{
-		Key:       key,
-		Algorithm: keyType,
+	// Parse the SSH wire format public key
+	pubKey, err := ssh.ParsePublicKey(key)
+	if err != nil {
+		log.Fatalf("Failed to parse public key: %v", err)
+		return nil, fmt.Errorf("error parsing public key: %w", err)
 	}
+
+	// Convert it to OpenSSH format
+	plainKey := ssh.MarshalAuthorizedKey(pubKey)
+
+	k := strings.Split(string(plainKey), " ")
+	if len(k) != 2 {
+		return nil, fmt.Errorf("error parsing public key")
+	}
+
 	auth := userKeyAuthRequest{
-		SshKeyObject: sshKeyObj,
-		AccountId:    accountId,
+		AccountId: accountId,
+		SshKeyObject: sshKeyObject{
+			Key:       strings.TrimSuffix(k[1], "\n"),
+			Algorithm: k[0],
+		},
 	}
+
 	body, err := json.Marshal(auth)
 	if err != nil {
 		return nil, fmt.Errorf("error marshalling auth: %v", auth)
@@ -181,7 +241,7 @@ func (r *RemoteCall) AuthenticateKey(
 	req.Header.Set(Authorization, token)
 	authResponse := &UserKeyAuthResponse{}
 
-	err = r.performHttpRequest(req, &authResponse)
+	err = r.performHttpRequest(req, r.httpClient, &authResponse)
 	if err != nil {
 		return nil, fmt.Errorf("error performing http request for AuthenticateKey: %w", err)
 	}
@@ -190,7 +250,7 @@ func (r *RemoteCall) AuthenticateKey(
 }
 
 func (r *RemoteCall) MapKey() []byte {
-	return r.mappingKeyFile
+	return r.mappingKeyFileData
 }
 
 func (r *RemoteCall) GetUpstreamAuthenticatorURL(clusterName string) (string, error) {

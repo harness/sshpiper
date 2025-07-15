@@ -4,15 +4,17 @@ import (
 	"fmt"
 
 	log "github.com/sirupsen/logrus"
+	"github.com/urfave/cli/v2"
+
 	"github.com/tg123/sshpiper/libplugin"
 	"github.com/tg123/sshpiper/plugin/internal/remotecall"
-	"github.com/urfave/cli/v2"
 )
 
 func createRemoteCaller(c *cli.Context) (*remotecall.RemoteCall, error) {
 	remoteCall, err := remotecall.InitRemoteCall(
 		c.String(userClusterMappingEndpoint),
 		c.String(userClusterMappingEndpointToken),
+		c.String(userClusterMappingEndpointSocketPath),
 		c.Generic(remoteAuthEndpoints).(*remotecall.StringMapFlag).Value,
 		c.Generic(remoteAuthEndpointsSecret).(*remotecall.StringMapFlag).Value,
 		c.Generic(remoteEndpoints).(*remotecall.StringMapFlag).Value,
@@ -35,8 +37,9 @@ const (
 
 	remoteEndpoints = "remote-endpoints"
 
-	userClusterMappingEndpoint      = "user-cluster-endpoint"
-	userClusterMappingEndpointToken = "user-cluster-endpoint-token"
+	userClusterMappingEndpoint           = "user-cluster-endpoint"
+	userClusterMappingEndpointSocketPath = "user-cluster-endpoint-socket-path"
+	userClusterMappingEndpointToken      = "user-cluster-endpoint-token"
 
 	mappingKeyPath = "mapping-key-path"
 )
@@ -73,13 +76,18 @@ func main() {
 				EnvVars: []string{"SSHPIPERD_USER_MAPPING_ENDPOINT"},
 			},
 			&cli.StringFlag{
+				Name:    userClusterMappingEndpointSocketPath,
+				Usage:   "path for getting user to cluster mapping via socket",
+				EnvVars: []string{"SSHPIPERD_USER_MAPPING_SOCKET_PATH"},
+			},
+			&cli.StringFlag{
 				Name:    userClusterMappingEndpointToken,
 				Usage:   "auth token(added to header) for getting user to cluster mapping",
 				EnvVars: []string{"SSHPIPERD_USER_MAPPING_ENDPOINT_TOKEN"},
 			},
 			&cli.PathFlag{
 				Name:    mappingKeyPath,
-				Usage:   "mapping key for upstream",
+				Usage:   "mapping key path for upstream (base64 encoded content)",
 				EnvVars: []string{"SSHPIPERD_MAPPING_KEY_PATH"},
 			},
 		},

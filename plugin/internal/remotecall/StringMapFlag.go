@@ -16,11 +16,15 @@ func (f *StringMapFlag) Set(value string) error {
 	if f.Value == nil {
 		f.Value = make(map[string]string)
 	}
-	parts := strings.SplitN(value, "=", 2)
-	if len(parts) != 2 {
-		return fmt.Errorf("invalid format, expecting key=value")
+	allItems := strings.Split(value, ",")
+	for _, item := range allItems {
+		parts := strings.SplitN(item, "=", 2)
+		if len(parts) != 2 {
+			return fmt.Errorf("invalid format, expecting key=value")
+		}
+		f.Value[parts[0]] = parts[1]
 	}
-	f.Value[parts[0]] = parts[1]
+
 	return nil
 }
 
