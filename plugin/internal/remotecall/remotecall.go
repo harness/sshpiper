@@ -51,8 +51,7 @@ type RemoteCall struct {
 func InitRemoteCall(
 	userClusterNameURL string,
 	userClusterToken string,
-	userClusterNameURLIsSocket bool,
-	userClusterNameURLSocketEndpoint string,
+	userClusterNameURLSocketPath string,
 	clusterNameToAuthenticatorURL map[string]string,
 	serviceJwtToken map[string]string,
 	clusterNameToUpstreamURL map[string]string,
@@ -64,8 +63,11 @@ func InitRemoteCall(
 	}
 
 	var socketHttpClient *http.Client
-	if userClusterNameURLIsSocket == true {
-		socketHttpClient = createSocketHttpClient(userClusterNameURLSocketEndpoint)
+	userClusterURLIsSocket := false
+
+	if userClusterNameURLSocketPath != "" {
+		userClusterURLIsSocket = true
+		socketHttpClient = createSocketHttpClient(userClusterNameURLSocketPath)
 	}
 
 	clusterNameToAuthenticatorURLParsed := make(map[string]*url.URL, len(clusterNameToAuthenticatorURL))
@@ -103,7 +105,7 @@ func InitRemoteCall(
 	return &RemoteCall{
 		userClusterNameURL:            userClusterNameURLParsed,
 		userClusterToken:              userClusterToken,
-		userClusterURLIsSocket:        userClusterNameURLIsSocket,
+		userClusterURLIsSocket:        userClusterURLIsSocket,
 		clusterNameToAuthenticatorURL: clusterNameToAuthenticatorURLParsed,
 		serviceJwtProvider:            jwtProviders,
 		httpClient:                    createHttpClient(),

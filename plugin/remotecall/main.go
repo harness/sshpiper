@@ -14,8 +14,7 @@ func createRemoteCaller(c *cli.Context) (*remotecall.RemoteCall, error) {
 	remoteCall, err := remotecall.InitRemoteCall(
 		c.String(userClusterMappingEndpoint),
 		c.String(userClusterMappingEndpointToken),
-		c.Bool(userClusterMappingEndpointIsSocket),
-		c.String(userClusterMappingEndpointSocketEndpoint),
+		c.String(userClusterMappingEndpointSocketPath),
 		c.Generic(remoteAuthEndpoints).(*remotecall.StringMapFlag).Value,
 		c.Generic(remoteAuthEndpointsSecret).(*remotecall.StringMapFlag).Value,
 		c.Generic(remoteEndpoints).(*remotecall.StringMapFlag).Value,
@@ -38,10 +37,9 @@ const (
 
 	remoteEndpoints = "remote-endpoints"
 
-	userClusterMappingEndpoint               = "user-cluster-endpoint"
-	userClusterMappingEndpointIsSocket       = "user-cluster-endpoint-is-socket"
-	userClusterMappingEndpointSocketEndpoint = "user-cluster-endpoint-socket-endpoint"
-	userClusterMappingEndpointToken          = "user-cluster-endpoint-token"
+	userClusterMappingEndpoint           = "user-cluster-endpoint"
+	userClusterMappingEndpointSocketPath = "user-cluster-endpoint-socket-path"
+	userClusterMappingEndpointToken      = "user-cluster-endpoint-token"
 
 	mappingKeyPath = "mapping-key-path"
 )
@@ -77,15 +75,9 @@ func main() {
 				Usage:   "endpoint for getting user to cluster mapping",
 				EnvVars: []string{"SSHPIPERD_USER_MAPPING_ENDPOINT"},
 			},
-			&cli.BoolFlag{
-				Name:     userClusterMappingEndpointIsSocket,
-				Usage:    "endpoint for getting user to cluster mapping is socket?",
-				EnvVars:  []string{"SSHPIPERD_USER_MAPPING_ENDPOINT_IS_SOCKET"},
-				Required: true,
-			},
 			&cli.StringFlag{
-				Name:    userClusterMappingEndpointSocketEndpoint,
-				Usage:   "endpoint for getting user to cluster mapping via socket",
+				Name:    userClusterMappingEndpointSocketPath,
+				Usage:   "path for getting user to cluster mapping via socket",
 				EnvVars: []string{"SSHPIPERD_USER_MAPPING_SOCKET_ENDPOINT"},
 			},
 			&cli.StringFlag{
