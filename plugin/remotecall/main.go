@@ -78,7 +78,7 @@ func main() {
 			&cli.StringFlag{
 				Name:    userClusterMappingEndpointSocketPath,
 				Usage:   "path for getting user to cluster mapping via socket",
-				EnvVars: []string{"SSHPIPERD_USER_MAPPING_SOCKET_ENDPOINT"},
+				EnvVars: []string{"SSHPIPERD_USER_MAPPING_SOCKET_PATH"},
 			},
 			&cli.StringFlag{
 				Name:    userClusterMappingEndpointToken,
